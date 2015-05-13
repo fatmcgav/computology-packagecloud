@@ -129,11 +129,11 @@ define packagecloud::repo(
         $gpg_key_filename = get_gpg_key_filename($server_address)
         # $gpg_file_path = "/etc/pki/rpm-gpg/RPM-GPG-KEY-${gpg_key_filename}"
 
-        # exec { "import_gpg_${normalized_name}":
-        #   command => "wget -qO ${gpg_file_path} ${gpg_url}",
-        #   path => "/usr/bin",
-        #   creates => $gpg_file_path,
-        # }
+        exec { "import_gpg_${normalized_name}":
+          command => "wget -qO ${gpg_file_path} ${gpg_url}",
+          path => "/usr/bin",
+          creates => $gpg_file_path,
+        }
 
         # file { "${normalized_name}":
         #   path    => "/etc/yum.repos.d/${normalized_name}.repo",
@@ -145,17 +145,18 @@ define packagecloud::repo(
 
         rpmkey { $gpg_key_id:
           ensure => present,
-          source => $gpg_url
+          source => $gpg_file_path
         }
 
         yumrepo { $normalized_name:
           ensure        => present,
+          name          => $normalized_name,
           enabled       => 1,
           baseurl       => $repo_url,
           repo_gpgcheck => $repo_gpgcheck,
           priority      => $priority,
           gpgcheck      => 0,
-          # gpgkey        => "file://${gpg_file_path}",
+          # gpgkey      => "file://${gpg_file_path}",
           sslverify     => 1,
           sslcacert     => '/etc/pki/tls/certs/ca-bundle.crt',
           require       => Rpmkey[$gpg_key_id]
