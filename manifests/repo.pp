@@ -23,7 +23,8 @@ define packagecloud::repo(
   $fq_name = undef,
   $master_token = undef,
   $priority = undef,
-  $server_address = "https://packagecloud.io",
+  $gpg_key_id = 'd59097ab-52d46e88',
+  $server_address = "https://packagecloud.io"
 ) {
   validate_string($type)
   validate_string($master_token)
@@ -117,7 +118,7 @@ define packagecloud::repo(
           }
         }
 
-        $description = $normalized_name
+        # $description = $normalized_name
         $repo_url = $::operatingsystem ? {
           /(RedHat|redhat|CentOS|centos|Scientific|OracleLinux|OEL)/ => $yum_repo_url,
           'Fedora' => "${base_url}/${repo_name}/fedora/${majrel}/$::architecture/",
@@ -126,27 +127,45 @@ define packagecloud::repo(
 
         $gpg_url = "${base_url}/gpg.key"
         $gpg_key_filename = get_gpg_key_filename($server_address)
-        $gpg_file_path = "/etc/pki/rpm-gpg/RPM-GPG-KEY-${gpg_key_filename}"
+        # $gpg_file_path = "/etc/pki/rpm-gpg/RPM-GPG-KEY-${gpg_key_filename}"
 
-        exec { "import_gpg_${normalized_name}":
-          command => "wget -qO ${gpg_file_path} ${gpg_url}",
-          path => "/usr/bin",
-          creates => $gpg_file_path,
+        # exec { "import_gpg_${normalized_name}":
+        #   command => "wget -qO ${gpg_file_path} ${gpg_url}",
+        #   path => "/usr/bin",
+        #   creates => $gpg_file_path,
+        # }
+
+        # file { "${normalized_name}":
+        #   path    => "/etc/yum.repos.d/${normalized_name}.repo",
+        #   ensure  => file,
+        #   mode    => 0644,
+        #   content => template('packagecloud/yum.erb'),
+        #   require => Exec["import_gpg_${normalized_name}"],
+        # }
+
+        rpmkey { $gpg_key_id:
+          ensure => present,
+          source => $gpg_url
         }
 
-        file { "${normalized_name}":
-          path    => "/etc/yum.repos.d/${normalized_name}.repo",
-          ensure  => file,
-          mode    => 0644,
-          content => template('packagecloud/yum.erb'),
-          require => Exec["import_gpg_${normalized_name}"],
+        yumrepo { $normalized_name:
+          ensure        => present,
+          enabled       => 1,
+          baseurl       => $repo_url,
+          repo_gpgcheck => $repo_gpgcheck,
+          priority      => $priority,
+          gpgcheck      => 0,
+          # gpgkey        => "file://${gpg_file_path}",
+          sslverify     => 1,
+          sslcacert     => '/etc/pki/tls/certs/ca-bundle.crt',
+          require       => Rpmkey[$gpg_key_id]
         }
 
-        exec { "yum_make_cache_${repo_name}":
-          command => "yum -q makecache -y --disablerepo='*' --enablerepo='${normalized_name}'",
-          path => "/usr/bin",
-          require => File["${normalized_name}"],
-        }
+        # exec { "yum_make_cache_${repo_name}":
+        #   command => "yum -q makecache -y --disablerepo='*' --enablerepo='${normalized_name}'",
+        #   path => "/usr/bin",
+        #   require => File["${normalized_name}"],
+        # }
       }
 
       default: {
