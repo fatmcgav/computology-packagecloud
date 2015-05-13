@@ -23,7 +23,7 @@ define packagecloud::repo(
   $fq_name = undef,
   $master_token = undef,
   $priority = undef,
-  $gpg_key_id = 'd59097ab-52d46e88',
+  $gpg_key_id = 'd59097ab',
   $server_address = "https://packagecloud.io"
 ) {
   validate_string($type)
